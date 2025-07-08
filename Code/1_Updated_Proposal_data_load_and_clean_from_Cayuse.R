@@ -17,10 +17,6 @@ proposal_data <- read_csv(Sys.getenv("PROPOSAL_DATA_PATH"))
 ### Filtering by Proposal type (keeping only the new proposal)
 
 
-
-
-
-
 # History Action Date and Comment column created:
 
 
@@ -119,15 +115,6 @@ Under_Consideration_cols <- c("Submitted to Sponsor to Under Consideration")
 
 # All Not Funded Columns
 Not_Funded_cols <- c("Not Funded","Not Funded_2","Not Funded_3")
-
-# All Submission Columns
-# Submission_cols <- c(
-#   "Approved to Submitted to Sponsor", "In Development to Submitted to Sponsor",
-#    "In Development to Submitted to Sponsor_2",
-#   "Approved to Submitted to Sponsor_2", "Under Review to Submitted to Sponsor",
-#   "Under Review to Submitted to Sponsor_2", "Under Consideration to Submitted to Sponsor",
-#   "Form was edited in 'Submitted to Sponsor' status_2"
-# )
 
 Submission_cols <- c(
   "Approved to Submitted to Sponsor",
@@ -435,10 +422,8 @@ proposal_data$Award_Count <- ifelse(proposal_data$Submission_Status == "Funded",
 proposal_data$Total_Submission_Count <- proposal_data$Submission_Count+proposal_data$Award_Count
 proposal_data$Received_Total_Sponsor_Costs <- ifelse(proposal_data$Submission_Status == "Funded",proposal_data$`Total Sponsor Costs`,0)
 
-# proposal_data <- proposal_data %>%
-#   filter(`Proposal Type` == "New")
 
-
+  
 
 proposal_data_subsetted <- proposal_data %>%
   select(
