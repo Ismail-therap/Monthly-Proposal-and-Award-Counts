@@ -43,6 +43,37 @@ ggplot(monthly_counts, aes(x = Month_Year, y = Count)) +
 
 
 
+
+
+##### Award Count by month:
+
+# Filter for Jan–Apr 2020
+award_monthly_counts <- award_data %>%
+  filter(`Award Start Date` >= as.Date("2024-07-01"),
+         `Award Start Date` <= as.Date("2025-06-30")) %>%
+  mutate(Month_Year = floor_date(`Award Start Date`, "month")) %>%
+  group_by(Month_Year) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  arrange(Month_Year)
+
+# Plot
+ggplot(award_monthly_counts, aes(x = Month_Year, y = Count)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_point(color = "darkred", size = 2) +
+  geom_text(aes(label = Count), vjust = -0.5, size = 3) +
+  scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
+  labs(
+    title = "Award Counts by Month-Year",
+    x = "Month-Year",
+    y = "Number of Awards"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+
+
 ## Quarterly Proposal Submission:
 
 
@@ -101,34 +132,6 @@ ggplot(quarterly_counts, aes(x = Custom_Quarter, y = Total_Submissions, group = 
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5))
-
-
-##### Award Count by month:
-
-# Filter for Jan–Apr 2020
-award_monthly_counts <- award_data %>%
-  filter(`Award Start Date` >= as.Date("2024-07-01"),
-         `Award Start Date` <= as.Date("2025-06-30")) %>%
-  mutate(Month_Year = floor_date(`Award Start Date`, "month")) %>%
-  group_by(Month_Year) %>%
-  summarise(Count = n(), .groups = "drop") %>%
-  arrange(Month_Year)
-
-# Plot
-ggplot(award_monthly_counts, aes(x = Month_Year, y = Count)) +
-  geom_line(color = "steelblue", linewidth = 1) +
-  geom_point(color = "darkred", size = 2) +
-  geom_text(aes(label = Count), vjust = -0.5, size = 3) +
-  scale_x_date(date_labels = "%b-%Y", date_breaks = "1 month") +
-  labs(
-    title = "Award Counts by Month-Year",
-    x = "Month-Year",
-    y = "Number of Awards"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-
 
 
 
