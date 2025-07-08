@@ -1,0 +1,126 @@
+---
+title: "Monthly Award and Proposal-Numbers and Amounts"
+author: "Md Ismail Hossain"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE)
+```
+
+```{r}
+# Loading Award Data and cleaning the data 
+library(readxl)
+library(dplyr)
+library(lubridate)
+
+Awards_FY25_All_Updated_2025_04_01 <- read_excel("Reports/Award Reports/Awards_FY25_All_Updated_2025_04_01.xlsx", 
+    sheet = "FY_25_All")
+
+Awards_FY25_All_Updated_2025_04_01 <- Awards_FY25_All_Updated_2025_04_01 %>%
+  mutate(
+    # Parse the date and format as "Mon-YY"
+    Report_Month_Year = format(as.Date(`Report Month/Year`), "%b-%y")
+  )
+
+
+
+# length(unique(Awards_FY25_All_Updated_2025_04_01$`Award #`))
+# dim(Awards_FY25_All_Updated_2025_04_01)
+# names(Awards_FY25_All_Updated_2025_04_01)
+# View(Awards_FY25_All_Updated_2025_04_01)
+# 
+# Awards_FY25_All_Updated_2025_04_01$`Report Month/Year`[1:10]
+```
+
+# Award Report:
+
+
+## 
+
+```{r}
+library(dplyr)
+library(lubridate)
+
+# Assuming your data frame is named Awards_FY25_All_Updated_2025_04_01
+
+# Step 1: Create Award Begin Month-Year
+Awards_FY25_All_Updated_2025_04_01 <- Awards_FY25_All_Updated_2025_04_01 %>%
+  mutate(
+    Award_Begin_Month_Year = format(as.Date(`Award Start Date`), "%b-%y")
+  )
+
+library(dplyr)
+library(lubridate)
+
+# Step 1: Add a hidden 'Award_Begin_Date' just for sorting
+Awards_Summary_Award_Start_Month_Year <- Awards_FY25_All_Updated_2025_04_01 %>%
+  group_by(Award_Begin_Month_Year) %>%
+  summarise(
+    Total_Awards = n(),
+    Total_Award_Amount = sum(`Total Expected Amount`, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Convert "Aug-24" to a date (assume first day of month)
+    Award_Begin_Date = my(paste0("01-", Award_Begin_Month_Year))
+  ) %>%
+  arrange(Award_Begin_Date) %>%  # Now arrange by proper date
+  select(-Award_Begin_Date)  # Drop the helper column if you don't want it in output
+
+
+
+
+Awards_Summary_Award_Start_Month_Year <- Awards_Summary_Award_Start_Month_Year %>%
+  mutate(
+    # Extract numeric year: assume '24' → 2024
+    Year = as.numeric(paste0("20", substr(Award_Begin_Month_Year, 5, 6))),
+    
+    # Convert abbreviated month name to number
+    Month = match(substr(Award_Begin_Month_Year, 1, 3), month.abb)
+  ) %>%
+  arrange(Year, Month) %>%
+  select(-Year, -Month)  # Optional: remove helper columns
+
+
+# # View the summarized table
+# print(Awards_Summary_Admin_Unit)
+# 
+# write.csv(Awards_Summary,"C:/Users/mhossa11/OneDrive - University of Wyoming/Projects/Summary Analysis From Cayuse Data 04292025/Output/Award_Summary.csv")
+```
+
+
+```{r}
+# Step 2: Create Summary Report
+Awards_Summary_College_Department <- Awards_FY25_All_Updated_2025_04_01 %>%
+  group_by(`College/Department`) %>%
+  summarise(
+    Total_Awards = n(),  # Count of awards
+    Total_Award_Amount = sum(`Total Expected Amount`, na.rm = TRUE)  # Sum of award amount
+  ) %>%
+  arrange(`College/Department`)  # Optional: nicely ordered
+
+Awards_Summary_College_Department
+
+
+```
+
+
+```{r}
+# Step 2: Create Summary Report
+Awards_Summary_Admin_Unit <- Awards_FY25_All_Updated_2025_04_01 %>%
+  group_by(`Admin Unit`) %>%
+  summarise(
+    Total_Awards = n(),  # Count of awards
+    Total_Award_Amount = sum(`Total Expected Amount`, na.rm = TRUE)  # Sum of award amount
+  ) %>%
+  arrange(`Admin Unit`)  # Optional: nicely ordered
+Awards_Summary_Admin_Unit
+
+```
+
+
+
+# Proposal Report
+
