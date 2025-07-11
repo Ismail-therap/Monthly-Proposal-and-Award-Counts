@@ -14,152 +14,73 @@ options(digits = 22)
 # STEP 1: Load the data
 award_data <- read_csv(Sys.getenv("AWARD_DATA_PATH"))
 
-table(award_data$`Modification Type`)
-### Fix admin Unit and PI unit changes:
 
-# STEP 1: Extract base award ID and version number
-award_data <- award_data %>%
-  mutate(
-    Award_Base = str_remove(`Award #`, "-\\d+$"),
-    Award_Version = as.numeric(str_extract(`Award #`, "\\d+$"))
-  )
-
-# STEP 2: Fill latest PI and Admin Unit down to all related records per project
-award_data <- award_data %>%
-  group_by(Award_Base) %>%
-  arrange(Award_Version, .by_group = TRUE) %>%
-  mutate(
-    Final_PI = coalesce(last(na.omit(PI)), first(PI)),
-    Final_Admin_Unit = coalesce(last(na.omit(`Admin Unit`)), first(`Admin Unit`))
-  ) %>%
-  ungroup()
-
-# STEP 3: If PI/Admin Unit differ from final value, update
-award_data <- award_data %>%
-  mutate(
-    PI = ifelse(is.na(PI) | PI != Final_PI, Final_PI, PI),
-    `Admin Unit` = ifelse(is.na(`Admin Unit`) | `Admin Unit` != Final_Admin_Unit, Final_Admin_Unit, `Admin Unit`)
-  ) %>%
-  select(-Award_Base, -Award_Version, -Final_PI, -Final_Admin_Unit)
-
-class(award_data$`Award Start Date`)
-class(award_data$`Modification Date`)
-award_data <- award_data %>%
-  mutate(
-    `Award Start Date` = as.Date(`Award Start Date`, format = "%m/%d/%Y"),
-    `Modification Date` = as.Date(`Modification Date`, format = "%m/%d/%Y")
-  )
-
-
-award_data <- award_data %>%
-  mutate(
-    `Award Start Date` = as.Date(ifelse(
-      !is.na(`Modification Date`) &
-        `Modification Type` == "New Funding Increment" &
-        `Modification Date` > `Award Start Date`,
-      `Modification Date`,
-      `Award Start Date`
-    ), origin = "1970-01-01")  # needed because dates are internally stored as numeric
-  )
-
-
-
-valid_mod_types <- c(
-  "Original Award", "New Funding Increment","De-Obligation", 
-  "Pre-Award Spending", "Pre-Award Spending Removal", 
-  "Key Personnel Change"
-)
-# Remove: "Pre-Award Spending Removal"
-
-Increment_amount_data <- award_data %>%
-  filter(`Modification Type` %in% valid_mod_types) %>%
-  select(`Award #`, `Obligated Amount`, `Modification Type`) %>%
-  filter(!is.na(`Obligated Amount`)) %>%
-  mutate(
-    `Obligated Amount` = gsub("[^0-9.]", "", `Obligated Amount`),
-    `Obligated Amount` = as.numeric(`Obligated Amount`),
-    Base_Award = str_remove(`Award #`, "-\\d+$")
-  ) %>%
-  arrange(Base_Award, `Award #`) %>%
-  group_by(Base_Award) %>%
-  # Define types that use lag-based increment calculation
-  mutate(
-    is_increment_type = `Modification Type` %in% c("Original Award", "New Funding Increment", "De-Obligation"),
-    incr_sequence = ifelse(is_increment_type, `Obligated Amount`, NA_real_)
-  ) %>%
-  mutate(
-    last_increment = zoo::na.locf(incr_sequence, na.rm = FALSE),
-    last_increment = ifelse(is.na(last_increment), 0, last_increment),
-    Increment_Amount_Obliged = case_when(
-      is_increment_type ~ `Obligated Amount` - lag(last_increment, default = 0),
-      TRUE ~ `Obligated Amount`
-    )
-  ) %>%
-  ungroup() %>%
-  mutate(
-    Increment_Amount_Obliged = case_when(
-      Increment_Amount_Obliged < 0 & !(`Modification Type` %in% c("De-Obligation", "Sponsor Decrease")) ~ `Obligated Amount`,
-      TRUE ~ Increment_Amount_Obliged
-    ),
-    Increment_Amount_Obliged = format(round(Increment_Amount_Obliged, 2), nsmall = 2)
-  ) %>%
-  select(`Award #`, Increment_Amount_Obliged)
-
-# Merge back to award data
-award_data <- merge(award_data, Increment_amount_data, by = "Award #")
-
-# Convert History Action Date to datetime first
-award_data <- award_data %>%
-  mutate(`History Action Date Parsed` = mdy_hms(`History Action Date`, quiet = TRUE))
-
-
-
-# STEP 2: Select last 16 columns to move them forward (as in your original script)
-award_data <- award_data %>%
-  select(-(1:16), everything()[1:16])
-
-# STEP 3: Remove rows where both Project Title and PI are missing
+# STEP 2: Remove rows where both Project Title and PI are missing (To remove unnecessary rows form the data)
 award_data <- award_data %>%
   filter(!(is.na(`Project Title`) & is.na(PI)))
 
-# STEP 4: Separate versioned and non-versioned award rows
+
+
+# STEP 3: Goal is to keep all the latest information about the award. So, we will keep the information from latest modification.
+
+# Extract base award ID and version number
 award_data <- award_data %>%
   mutate(
-    is_versioned = grepl("-\\d+$", `Award #`)
-  )
-
-
-award_data_versioned <- award_data %>%
-  filter(is_versioned) %>%
-  mutate(
-    Award_Base = sub("-\\d+$", "", `Award #`),
-    Award_Version = as.numeric(sub(".*-(\\d+)$", "\\1", `Award #`))
+    # Check if Award # has a version (has a second hyphen after A0001)
+    has_version = str_detect(`Award #`, "-\\d+$"),
+    
+    # Award_Base: remove version if present
+    Award_Base = if_else(
+      has_version,
+      str_remove(`Award #`, "-\\d+$"),
+      `Award #`
+    ),
+    
+    # Award_Version: extract numeric version or assign 0 if missing
+    Modification_Version = if_else(
+      has_version,
+      as.numeric(str_extract(`Award #`, "\\d+$")),
+      0
+    )
   ) %>%
-  select(-Award_Base, -Award_Version, -is_versioned)
+  select(-has_version)  # optional: remove the helper column
 
 
+# ======= This part of code will not work for new form. I can use the Creation date filter or condition to seperate the workflow
+# If Form Creation Date < Aug 1. (Dummy Relese Date)
+award_data_cleaned <- award_data %>%
+  group_by(Award_Base) %>%
+  filter(Modification_Version == max(Modification_Version, na.rm = TRUE)) %>%
+  rename(`Latest Modification Type` = `Modification Type`)  %>%
+  ungroup()
+
+# === If Form Creation Date is >= Aug 1. (Dummy Relese Date)
 
 
-# ---- KEEP NON-VERSIONED AWARDS AS-IS ---- #
-award_data_nonversioned <- award_data %>%
-  filter(!is_versioned) %>%
-  select(-is_versioned)
+# In next release if Increment Obligated Amount start reporting then I have to summed the value when Modification type is Original Award or New Funding Incremnet to
+# get the total Obligated Amount. Currently it's reporting the cumulative summed value. 
 
-# ---- COMBINE CLEANED DATA ---- #
-award_data_cleaned <- bind_rows(award_data_versioned, award_data_nonversioned)
+# Then rbind old and new forms to go nex part!!!!
 
 
-class(award_data_cleaned$`Award Start Date`)
+# STEP 4: Create a variable which show if it's a old project meaning legacy load or not.
+
+# If there is a number in `infoed project number` then it's a legacy load (old project or not)
+award_data_cleaned$legacy_load <- ifelse(!is.na(award_data_cleaned$`infoed project number`), "Yes", "No")
+
+
 
 
 # STEP 5: Convert Award Start Date and add Month-Year column
 award_data_cleaned <- award_data_cleaned %>%
   mutate(
+    `Award Start Date` = as.Date(`Award Start Date`, format = "%m/%d/%Y"),
     Award_Start_Month_Year = paste0("'", format(`Award Start Date`, "%b-%y"))  # e.g., 'Jun-25
   )
 
 
 
+# STEP 6: Adding the College/Division Information based on Admin Unit:
 
 college_name_data_Ashlee <- read_excel(Sys.getenv("COLLEGE_NAME_DATA_PATH_ASHLEE"))
 
@@ -202,10 +123,6 @@ award_data_cleaned$`Admin Unit` <- ifelse(award_data_cleaned$`Admin Unit` == "Ac
 award_data_cleaned <- award_data_cleaned %>%
   select(`Award #`, everything())
 
-# Final filtering
-award_data_cleaned <- award_data_cleaned %>%
-  filter(`Modification Type` %in% c("Original Award", "New Funding Increment"))
-
 
 
 
@@ -214,18 +131,17 @@ award_data <- award_data_cleaned
 
 subsetted_award_data <- award_data %>%
   select(
-    `Award #`,`Project Title`,`Award Title`,`PI`,`PI Unit`, `Award Amount`, `Award Id`, `Award Notice Received`, `Increment Amount`,
-    `Modification Number`, `Modification Type`, `Modification Date`, `Modified By`, `sponsor type`, `activity type`,
-    `Increment_Amount_Obliged`, `History Action Date Parsed` , `Sponsor`, `Prime Sponsor`,
-    `Instrument Type`, `Award Start Date`, `Award End Date`, `Admin Unit`, `Obligated Amount`, `Project #`,
-    `Total Expected Amount`, `Anticipated Amount`, `Status`, `Created Date`, `Award Type`, `Award_Start_Month_Year`,
-    `College/Division`
-  )
+    `Award #`,`Award_Base`,`Project #`,`Project Title`,`PI`,`PI Unit`, 
+    `Admin Unit`,`College/Division`,`Created Date`,`Award Start Date`,`Award_Start_Month_Year`, 
+    `Award End Date`,`Award Notice Received`,`Sponsor`, `Prime Sponsor`, `sponsor type`,
+     `Latest Modification Type`, `Modification Date`, `Modified By`, `activity type`, 
+    `Status`,`Total Expected Amount`, `Obligated Amount`
+)
 
 
 
 
-library(dplyr)
+
 subsetted_award_data <- subsetted_award_data %>%
   mutate(
     Comment = case_when(
@@ -254,5 +170,10 @@ subsetted_award_data <- subsetted_award_data %>%
     )
   )
 
-output_path_prop <- file.path(output_path, "Processed_Award_Data_Subsetted.csv")
+
+output_path_prop <- file.path(output_path, "Processed_Award_Data_Subsetted_07082025.csv")
 write.csv(subsetted_award_data,output_path_prop,row.names=F,na="")
+
+
+
+

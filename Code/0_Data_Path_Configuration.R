@@ -22,7 +22,7 @@ base_path <- "C:/Users/mhossa11/OneDrive - University of Wyoming/Projects/Monthl
 # 📌 Define File Paths Using Base Path
 # Cayuse Data
 proposal_data_path <- file.path(base_path, "Cayuse Data/Proposal_Data_All_06302025.csv")
-award_data_path <- file.path(base_path, "Cayuse Data/Award_Data_All_06302025.csv")
+award_data_path <- file.path(base_path, "Cayuse Data/Award_Data_All_07082025.csv")
 
 
 wyocloud_path <- file.path(base_path, "WyoCloud Data/")
