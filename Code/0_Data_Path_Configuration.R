@@ -9,7 +9,7 @@ library(readxl)     # For reading Excel files
 library(lubridate)  # For handling date-time conversions
 library(stringr)    # For string operations
 library(tidyr)      # For reshaping data
-
+library(ggplot2)
 # =====================================================
 # STEP 1: Define Base Path for Data
 # =====================================================

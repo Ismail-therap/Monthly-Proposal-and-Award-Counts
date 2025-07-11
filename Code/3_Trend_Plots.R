@@ -10,9 +10,6 @@ source(file.path(code_base_path, "2_Award_Data_Preperation_from_Cayuse.R"))
 
 #### Monthly Proposal Submission counts:
 
-library(dplyr)
-library(ggplot2)
-library(lubridate)
 
 # Ensure date column is Date
 proposal_data <- proposal_data %>%

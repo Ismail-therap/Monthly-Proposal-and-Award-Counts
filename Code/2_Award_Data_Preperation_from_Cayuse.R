@@ -4,9 +4,6 @@
 
 source("C:/Users/mhossa11/OneDrive - University of Wyoming/Projects/Monthly Summary Analysis From Cayuse Data 04292025/Code/0_Data_Path_Configuration.R")
 
-library(dplyr)
-library(lubridate)
-library(readr)
 
 options(scipen = 999)
 options(digits = 22)
@@ -171,7 +168,7 @@ subsetted_award_data <- subsetted_award_data %>%
   )
 
 
-output_path_prop <- file.path(output_path, "Processed_Award_Data_Subsetted_07082025.csv")
+output_path_prop <- file.path(output_path, "Processed_Award_Data_Subsetted_07112025.csv")
 write.csv(subsetted_award_data,output_path_prop,row.names=F,na="")
 
 
